@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { FaUser, FaSignOutAlt, FaPlus, FaKey, FaTimes, FaHome } from 'react-icons/fa';
+import { FaUser, FaSignOutAlt, FaPlus, FaKey, FaTimes, FaHome, FaCopy, FaUserPlus, FaSearch } from 'react-icons/fa';
 import { useAuth } from '@/context/AuthContext';
 import { collection, query, where, getDocs, addDoc, serverTimestamp, doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from '@/firebase/config';
@@ -23,6 +23,9 @@ export default function Dashboard() {
   const [joinRoomData, setJoinRoomData] = useState({ roomId: '', password: '' });
   const [rooms, setRooms] = useState<Room[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<Array<{id: string, name: string}>>([]);
+  const [searching, setSearching] = useState(false);
 
   useEffect(() => {
     const fetchRooms = async () => {
@@ -156,6 +159,58 @@ export default function Dashboard() {
     }
   };
 
+  // 招待リンクの生成とコピー
+  const handleCreateInvite = (e: React.MouseEvent, roomId: string, roomName: string) => {
+    e.preventDefault(); // リンククリックを防止
+    e.stopPropagation(); // イベントの伝播を防止
+    
+    // アプリのベースURL（本番環境では適切なドメインに変更）
+    const baseUrl = window.location.origin;
+    
+    // 招待メッセージの作成
+    const inviteMessage = 
+`【Talk & Task招待】
+「${roomName}」ルームに参加しませんか？
+
+▼ルーム情報
+ルームID: ${roomId}
+
+▼アプリを開く
+${baseUrl}
+
+※アプリにログイン後、「既存のルームに参加」から上記IDとパスワードを入力してください。`;
+    
+    navigator.clipboard.writeText(inviteMessage)
+      .then(() => {
+        toast.success('招待メッセージをコピーしました！友達に共有してください', {
+          duration: 4000,
+          icon: '🎉'
+        });
+      })
+      .catch((error) => {
+        console.error('クリップボードへのコピーに失敗しました', error);
+        toast.error('コピーに失敗しました');
+      });
+  };
+
+  // ルームIDをコピーする関数
+  const handleCopyRoomId = (roomId: string, event: React.MouseEvent) => {
+    event.preventDefault(); // リンククリックを防止
+    event.stopPropagation(); // イベントの伝播を防止
+    
+    navigator.clipboard.writeText(roomId)
+      .then(() => {
+        toast.success('ルームIDをコピーしました', {
+          duration: 3000,
+          icon: '📋'
+        });
+      })
+      .catch((error) => {
+        console.error('クリップボードへのコピーに失敗しました', error);
+        toast.error('コピーに失敗しました');
+      });
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-teal-100 flex items-center justify-center">
@@ -217,6 +272,27 @@ export default function Dashboard() {
               >
                 <div className="flex justify-between items-start">
                   <h3 className="text-xl font-medium text-gray-800 mb-2">{room.name}</h3>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={(e) => handleCopyRoomId(room.id, e)}
+                      className="text-gray-400 hover:text-pink-500 transition-colors p-1"
+                      title="ルームIDをコピー"
+                    >
+                      <FaCopy size={14} />
+                    </button>
+                    <button
+                      onClick={(e) => handleCreateInvite(e, room.id, room.name)}
+                      className="text-gray-400 hover:text-teal-500 transition-colors p-1"
+                      title="招待メッセージを作成"
+                    >
+                      <FaUserPlus size={14} />
+                    </button>
+                  </div>
+                </div>
+                <div className="mb-3">
+                  <div className="flex items-center">
+                    <span className="text-xs text-gray-500 font-mono bg-gray-100 px-2 py-1 rounded mr-1">ID: {room.id}</span>
+                  </div>
                 </div>
                 <p className="text-gray-600 text-sm mb-4">最終アクティブ: {room.lastActive}</p>
                 <div className="flex justify-end">
