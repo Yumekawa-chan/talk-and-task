@@ -28,6 +28,26 @@ export default function ChatMessage({ message, isCurrentUser }: ChatMessageProps
 
   return (
     <div className={`flex ${isCurrentUser ? 'justify-end' : 'justify-start'} mb-4`}>
+      {!isCurrentUser && (
+        <div className="mr-2 flex flex-col items-center">
+          <div className="w-8 h-8 rounded-full bg-pink-100 flex items-center justify-center overflow-hidden">
+            {message.sender.profileImage ? (
+              <Image 
+                src={message.sender.profileImage}
+                alt={message.sender.name}
+                width={32}
+                height={32}
+                className="object-cover w-full h-full"
+              />
+            ) : (
+              <span className="text-sm text-pink-500 font-bold">
+                {message.sender.name.charAt(0).toUpperCase()}
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+      
       <div
         className={`max-w-[80%] rounded-2xl px-4 py-3 shadow-md ${
           isCurrentUser
@@ -37,19 +57,6 @@ export default function ChatMessage({ message, isCurrentUser }: ChatMessageProps
       >
         {!isCurrentUser && (
           <div className="flex items-center gap-2 text-xs font-medium text-pink-500 mb-1 border-b border-pink-100 pb-1">
-            <div className="w-4 h-4 rounded-full bg-pink-100 flex items-center justify-center overflow-hidden">
-              {message.sender.profileImage ? (
-                <Image 
-                  src={message.sender.profileImage}
-                  alt={message.sender.name}
-                  width={16}
-                  height={16}
-                  className="object-cover w-full h-full"
-                />
-              ) : (
-                message.sender.name.charAt(0).toUpperCase()
-              )}
-            </div>
             <span>{message.sender.name}</span>
           </div>
         )}
@@ -58,6 +65,26 @@ export default function ChatMessage({ message, isCurrentUser }: ChatMessageProps
           {formatDate(message.timestamp)}
         </div>
       </div>
+      
+      {isCurrentUser && (
+        <div className="ml-2 flex flex-col items-center">
+          <div className="w-8 h-8 rounded-full bg-pink-100 flex items-center justify-center overflow-hidden">
+            {message.sender.profileImage ? (
+              <Image 
+                src={message.sender.profileImage}
+                alt={message.sender.name}
+                width={32}
+                height={32}
+                className="object-cover w-full h-full"
+              />
+            ) : (
+              <span className="text-sm text-pink-500 font-bold">
+                {message.sender.name.charAt(0).toUpperCase()}
+              </span>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 } 

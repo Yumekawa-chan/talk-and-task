@@ -55,7 +55,7 @@ export default function ProfilePage() {
       // 古い画像が存在する場合は削除
       if (profileImage) {
         try {
-          const oldImageRef = ref(storage, `profileImages/${user.uid}`);
+          const oldImageRef = ref(storage, `profile_images/${user.uid}`);
           await deleteObject(oldImageRef);
         } catch (error) {
           console.error('Error deleting old image:', error);
@@ -63,7 +63,7 @@ export default function ProfilePage() {
       }
 
       // 新しい画像をアップロード
-      const storageRef = ref(storage, `profileImages/${user.uid}`);
+      const storageRef = ref(storage, `profile_images/${user.uid}`);
       await uploadBytes(storageRef, file);
       const downloadURL = await getDownloadURL(storageRef);
       
