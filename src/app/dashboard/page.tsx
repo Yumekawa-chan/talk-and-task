@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { FaUser, FaSignOutAlt, FaPlus, FaKey, FaTimes, FaHome, FaCopy, FaUserPlus, FaSearch } from 'react-icons/fa';
+import { FaUser, FaSignOutAlt, FaPlus, FaKey, FaTimes, FaHome, FaCopy, FaUserPlus} from 'react-icons/fa';
 import { useAuth } from '@/context/AuthContext';
 import { collection, query, where, getDocs, addDoc, serverTimestamp, doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from '@/firebase/config';
@@ -23,9 +23,6 @@ export default function Dashboard() {
   const [joinRoomData, setJoinRoomData] = useState({ roomId: '', password: '' });
   const [rooms, setRooms] = useState<Room[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<Array<{id: string, name: string}>>([]);
-  const [searching, setSearching] = useState(false);
 
   useEffect(() => {
     const fetchRooms = async () => {
