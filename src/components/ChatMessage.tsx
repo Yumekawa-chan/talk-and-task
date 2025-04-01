@@ -1,5 +1,6 @@
 import { ChatMessage as ChatMessageType } from '@/hooks/useRoom';
 import { Timestamp } from 'firebase/firestore';
+import Image from 'next/image';
 
 interface ChatMessageProps {
   message: ChatMessageType;
@@ -36,8 +37,18 @@ export default function ChatMessage({ message, isCurrentUser }: ChatMessageProps
       >
         {!isCurrentUser && (
           <div className="flex items-center gap-2 text-xs font-medium text-pink-500 mb-1 border-b border-pink-100 pb-1">
-            <div className="w-4 h-4 rounded-full bg-pink-100 flex items-center justify-center">
-              {message.sender.name.charAt(0).toUpperCase()}
+            <div className="w-4 h-4 rounded-full bg-pink-100 flex items-center justify-center overflow-hidden">
+              {message.sender.profileImage ? (
+                <Image 
+                  src={message.sender.profileImage}
+                  alt={message.sender.name}
+                  width={16}
+                  height={16}
+                  className="object-cover w-full h-full"
+                />
+              ) : (
+                message.sender.name.charAt(0).toUpperCase()
+              )}
             </div>
             <span>{message.sender.name}</span>
           </div>

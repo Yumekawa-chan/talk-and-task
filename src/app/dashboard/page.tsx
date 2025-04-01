@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { FaUser, FaSignOutAlt, FaPlus, FaKey, FaTimes, FaHome, FaCopy, FaUserPlus, FaTrash } from 'react-icons/fa';
 import { useAuth } from '@/context/AuthContext';
 import { collection, query, where, getDocs, addDoc, serverTimestamp, doc, getDoc, updateDoc, deleteDoc } from 'firebase/firestore';
@@ -16,7 +17,7 @@ interface Room {
 }
 
 export default function Dashboard() {
-  const { user, signOut } = useAuth();
+  const { user, signOut, userProfileImage } = useAuth();
   const [createRoomModalOpen, setCreateRoomModalOpen] = useState(false);
   const [joinRoomModalOpen, setJoinRoomModalOpen] = useState(false);
   const [newRoomData, setNewRoomData] = useState({ name: '', password: '' });
@@ -291,7 +292,21 @@ ${baseUrl}
             </div>
             <div className="flex items-center space-x-4">
               <Link href="/dashboard/profile" className="text-gray-700 hover:text-pink-500 flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-pink-50 transition-colors">
-                <FaUser />
+                <div className="w-8 h-8 rounded-full bg-pink-100 flex items-center justify-center overflow-hidden">
+                  {userProfileImage ? (
+                    <Image 
+                      src={userProfileImage}
+                      alt="プロフィール画像"
+                      width={32}
+                      height={32}
+                      className="object-cover"
+                    />
+                  ) : (
+                    <span className="text-lg text-pink-500 font-bold">
+                      {user?.displayName ? user.displayName.charAt(0).toUpperCase() : <FaUser size={16} />}
+                    </span>
+                  )}
+                </div>
                 <span>プロフィール</span>
               </Link>
               <button

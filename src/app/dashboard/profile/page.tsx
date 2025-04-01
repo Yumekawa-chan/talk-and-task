@@ -1,18 +1,23 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { FaArrowLeft, FaCheck, FaHome, FaUser } from 'react-icons/fa';
 import { useAuth } from '@/context/AuthContext';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
-import { db } from '@/firebase/config';
+import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
+import { db, storage } from '@/firebase/config';
 import toast from 'react-hot-toast';
 
 export default function ProfilePage() {
   const { user } = useAuth();
   const [displayName, setDisplayName] = useState('');
+  const [profileImage, setProfileImage] = useState('');
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const fetchUserProfile = async () => {
@@ -23,6 +28,7 @@ export default function ProfilePage() {
         if (userDoc.exists()) {
           const userData = userDoc.data();
           setDisplayName(userData.displayName || '');
+          setProfileImage(userData.profileImage || '');
         }
       } catch (error) {
         console.error('Error fetching user profile:', error);
@@ -34,15 +40,64 @@ export default function ProfilePage() {
     fetchUserProfile();
   }, [user]);
 
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+
+    // 画像ファイルのみを許可
+    if (!file.type.match('image.*')) {
+      toast.error('画像ファイルを選択してください');
+      return;
+    }
+
+    setUploading(true);
+    try {
+      // 古い画像が存在する場合は削除
+      if (profileImage) {
+        try {
+          const oldImageRef = ref(storage, `profileImages/${user.uid}`);
+          await deleteObject(oldImageRef);
+        } catch (error) {
+          console.error('Error deleting old image:', error);
+        }
+      }
+
+      // 新しい画像をアップロード
+      const storageRef = ref(storage, `profileImages/${user.uid}`);
+      await uploadBytes(storageRef, file);
+      const downloadURL = await getDownloadURL(storageRef);
+      
+      // プロフィール画像URLを更新
+      setProfileImage(downloadURL);
+      
+      // Firestoreにも画像URLを保存
+      await updateDoc(doc(db, 'users', user.uid), {
+        profileImage: downloadURL,
+        updatedAt: new Date()
+      });
+      
+      toast.success('プロフィール画像をアップロードしました');
+      
+      // AuthContextの更新を反映させるためにページを再読み込み
+      // 注: コンテキストを直接更新できる関数があればそれを使用するのがベター
+      window.location.reload();
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      toast.error('画像のアップロードに失敗しました');
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
     
     setUpdating(true);
     try {
-      // Firestoreを更新（画像関連のフィールドは削除）
       await updateDoc(doc(db, 'users', user.uid), {
         displayName,
+        profileImage, // 画像URLも保存
         updatedAt: new Date()
       });
 
@@ -86,13 +141,64 @@ export default function ProfilePage() {
         <div className="bg-white rounded-xl shadow-lg p-8 border-2 border-gray-200">
           <form onSubmit={handleSubmit} className="flex flex-col md:flex-row gap-8 items-start">
             <div className="w-full md:w-1/3 flex flex-col items-center">
-              <div className="w-40 h-40 rounded-full bg-pink-100 flex items-center justify-center border-4 border-pink-200">
-                <div className="text-6xl text-pink-500 font-bold">
-                  {displayName ? displayName.charAt(0).toUpperCase() : <FaUser size={64} />}
+              <div className="w-40 h-40 rounded-full bg-pink-100 flex items-center justify-center border-4 border-pink-200 relative overflow-hidden">
+                <div 
+                  className="w-full h-full cursor-pointer"
+                  onClick={() => fileInputRef.current?.click()}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const files = e.dataTransfer.files;
+                    if (files && files.length > 0) {
+                      const fileInput = fileInputRef.current;
+                      if (fileInput) {
+                        // DataTransferから取得したファイルをFileListに設定する方法がないため
+                        // 手動でChangeイベントを発火させる代わりに関数を直接呼び出す
+                        const event = {
+                          target: {
+                            files: files
+                          }
+                        } as unknown as React.ChangeEvent<HTMLInputElement>;
+                        handleImageUpload(event);
+                      }
+                    }
+                  }}
+                >
+                  {profileImage ? (
+                    <Image 
+                      src={profileImage}
+                      alt="プロフィール画像"
+                      width={160}
+                      height={160}
+                      className="object-cover w-full h-full"
+                    />
+                  ) : (
+                    <div className="text-6xl text-pink-500 font-bold w-full h-full flex items-center justify-center">
+                      {displayName ? displayName.charAt(0).toUpperCase() : <FaUser size={64} />}
+                    </div>
+                  )}
                 </div>
+                
+                {uploading && (
+                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                    <div className="w-10 h-10 border-4 border-white border-t-transparent rounded-full animate-spin"></div>
+                  </div>
+                )}
+                
+                <input 
+                  type="file" 
+                  ref={fileInputRef}
+                  onChange={handleImageUpload}
+                  accept="image/*"
+                  className="hidden"
+                />
               </div>
               <p className="mt-4 text-gray-600 text-sm">
-                プロフィールイニシャル表示
+                {profileImage ? 'クリックして画像を変更' : 'クリックして画像をアップロード'}
               </p>
             </div>
 

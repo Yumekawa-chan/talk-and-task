@@ -34,6 +34,7 @@ export interface ChatMessage {
   sender: {
     id: string;
     name: string;
+    profileImage?: string;
   };
   timestamp: Timestamp;
 }
@@ -234,7 +235,8 @@ export const useRoom = (roomId: string) => {
         content,
         sender: {
           id: user.uid,
-          name: userData.displayName || 'ユーザー'
+          name: userData.displayName || 'ユーザー',
+          profileImage: userData.profileImage || ''
         },
         timestamp: serverTimestamp()
       };
@@ -269,7 +271,8 @@ export const useRoom = (roomId: string) => {
           members.push({
             id: memberId,
             name: memberData.displayName || 'ユーザー',
-            email: memberData.email
+            email: memberData.email,
+            profileImage: memberData.profileImage || ''
           });
         }
       }

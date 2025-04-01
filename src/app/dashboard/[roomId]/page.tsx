@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { FaArrowLeft, FaPlus, FaPaperPlane, FaTimes, FaArrowRight, FaHome, FaCheckCircle } from 'react-icons/fa';
 import ChatMessage from '@/components/ChatMessage';
 import { useRoom, TaskStatus, Task } from '@/hooks/useRoom';
@@ -28,6 +29,7 @@ export default function RoomPage({ params }: RoomPageProps) {
     id: string;
     name: string;
     email: string;
+    profileImage?: string;
   }[]>([]);
 
   // useRoomフックを使用してFirebaseからデータを取得
@@ -114,6 +116,12 @@ export default function RoomPage({ params }: RoomPageProps) {
       setCurrentTask(task);
       setEditTaskModalOpen(true);
     }
+  };
+
+  // ルームメンバーから担当者のプロフィール画像を取得する関数
+  const getAssigneeProfileImage = (assigneeId: string) => {
+    const member = roomMembers.find(member => member.id === assigneeId);
+    return member?.profileImage || '';
   };
 
   // メッセージ送信ハンドラー
@@ -388,8 +396,18 @@ export default function RoomPage({ params }: RoomPageProps) {
                         <p className="text-gray-600 text-sm mb-4 line-clamp-2">{task.description}</p>
                         <div className="flex justify-between items-center">
                           <span className="text-pink-500 text-sm font-medium flex items-center gap-1">
-                            <div className="w-5 h-5 rounded-full bg-pink-100 flex items-center justify-center text-xs">
-                              {task.assignedUserName.charAt(0).toUpperCase()}
+                            <div className="w-5 h-5 rounded-full bg-pink-100 flex items-center justify-center text-xs overflow-hidden">
+                              {getAssigneeProfileImage(task.assignedTo) ? (
+                                <Image 
+                                  src={getAssigneeProfileImage(task.assignedTo)}
+                                  alt={task.assignedUserName}
+                                  width={20}
+                                  height={20}
+                                  className="object-cover w-full h-full"
+                                />
+                              ) : (
+                                task.assignedUserName.charAt(0).toUpperCase()
+                              )}
                             </div>
                             {task.assignedUserName}
                           </span>
@@ -443,8 +461,18 @@ export default function RoomPage({ params }: RoomPageProps) {
                         <div className="flex justify-between items-center">
                           <div>
                             <span className="text-teal-500 text-sm font-medium flex items-center gap-1">
-                              <div className="w-5 h-5 rounded-full bg-teal-100 flex items-center justify-center text-xs">
-                                {task.assignedUserName.charAt(0).toUpperCase()}
+                              <div className="w-5 h-5 rounded-full bg-teal-100 flex items-center justify-center text-xs overflow-hidden">
+                                {getAssigneeProfileImage(task.assignedTo) ? (
+                                  <Image 
+                                    src={getAssigneeProfileImage(task.assignedTo)}
+                                    alt={task.assignedUserName}
+                                    width={20}
+                                    height={20}
+                                    className="object-cover w-full h-full"
+                                  />
+                                ) : (
+                                  task.assignedUserName.charAt(0).toUpperCase()
+                                )}
                               </div>
                               {task.assignedUserName}
                             </span>
@@ -511,8 +539,18 @@ export default function RoomPage({ params }: RoomPageProps) {
                         <p className="text-gray-500 text-sm mb-4 line-clamp-2">{task.description}</p>
                         <div className="flex justify-between items-center">
                           <span className="text-gray-500 text-sm font-medium flex items-center gap-1">
-                            <div className="w-5 h-5 rounded-full bg-gray-200 flex items-center justify-center text-xs">
-                              {task.assignedUserName.charAt(0).toUpperCase()}
+                            <div className="w-5 h-5 rounded-full bg-gray-200 flex items-center justify-center text-xs overflow-hidden">
+                              {getAssigneeProfileImage(task.assignedTo) ? (
+                                <Image 
+                                  src={getAssigneeProfileImage(task.assignedTo)}
+                                  alt={task.assignedUserName}
+                                  width={20}
+                                  height={20}
+                                  className="object-cover w-full h-full"
+                                />
+                              ) : (
+                                task.assignedUserName.charAt(0).toUpperCase()
+                              )}
                             </div>
                             {task.assignedUserName}
                           </span>

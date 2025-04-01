@@ -14,6 +14,7 @@ import { useRouter } from 'next/navigation';
 
 interface AuthContextType {
   user: User | null;
+  userProfileImage: string;
   loading: boolean;
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
@@ -23,6 +24,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [userProfileImage, setUserProfileImage] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
@@ -40,9 +42,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             displayName: authUser.displayName,
             createdAt: serverTimestamp(),
           });
+        } else {
+          // プロフィール画像があれば取得
+          const userData = docSnap.data();
+          if (userData.profileImage) {
+            setUserProfileImage(userData.profileImage);
+          }
         }
       } else {
         setUser(null);
+        setUserProfileImage('');
       }
       setLoading(false);
     });
@@ -70,7 +79,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, signInWithGoogle, signOut }}>
+    <AuthContext.Provider value={{ user, userProfileImage, loading, signInWithGoogle, signOut }}>
       {children}
     </AuthContext.Provider>
   );
