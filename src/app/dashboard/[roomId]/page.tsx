@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { FaArrowLeft, FaPlus, FaPaperPlane, FaTimes, FaArrowRight, FaHome } from 'react-icons/fa';
+import { FaArrowLeft, FaPlus, FaPaperPlane, FaTimes, FaArrowRight, FaHome, FaCheckCircle } from 'react-icons/fa';
 import ChatMessage from '@/components/ChatMessage';
 import { useRoom, TaskStatus, Task } from '@/hooks/useRoom';
 import { useAuth } from '@/context/AuthContext';
@@ -480,35 +480,38 @@ export default function RoomPage({ params }: RoomPageProps) {
 
                 {/* 完了タスク */}
                 <div className="bg-yellow-50 rounded-2xl p-5 shadow-md border border-yellow-200">
-                  <h3 className="text-lg font-medium text-yellow-600 mb-4 border-b-2 border-yellow-200 pb-2 flex items-center">
+                  <h3 className="text-lg font-medium text-yellow-600 mb-4 border-b-2 border-yellow-200 pb-2 flex items-centerr">
                     <span className="flex-1">完了 ({completedTasks.length})</span>
                   </h3>
                   <div className="space-y-4">
                     {completedTasks.map((task) => (
-                      <div key={task.id} className="bg-white border-2 border-yellow-200 rounded-xl p-4 shadow-sm hover:shadow-md transition-all transform hover:-translate-y-1 duration-200">
+                      <div key={task.id} className="bg-gray-800/20 border-2 border-gray-200 rounded-xl p-4 shadow-sm hover:shadow-md transition-all transform hover:-translate-y-1 duration-200 opacity-75">
                         <div className="flex justify-between mb-2">
-                          <h4 className="font-medium text-gray-800">{task.title}</h4>
+                          <h4 className="font-medium text-gray-600 flex items-center">
+                            <FaCheckCircle className="inline mr-1 text-gray-500" size={14} />
+                            {task.title}
+                          </h4>
                           <div className="flex space-x-2">
                             <button
                               onClick={() => handleEditTask(task.id)}
-                              className="text-yellow-500 hover:text-yellow-700 transition-colors"
+                              className="text-gray-500 hover:text-gray-700 transition-colors"
                               title="タスクを編集"
                             >
                               <FaPlus size={14} />
                             </button>
                             <button
                               onClick={() => handleDeleteTask(task.id)}
-                              className="text-red-400 hover:text-red-600 transition-colors"
+                              className="text-gray-500 hover:text-gray-700 transition-colors"
                               title="タスクを削除"
                             >
                               <FaTimes size={14} />
                             </button>
                           </div>
                         </div>
-                        <p className="text-gray-600 text-sm mb-4 line-clamp-2">{task.description}</p>
+                        <p className="text-gray-500 text-sm mb-4 line-clamp-2">{task.description}</p>
                         <div className="flex justify-between items-center">
-                          <span className="text-yellow-500 text-sm font-medium flex items-center gap-1">
-                            <div className="w-5 h-5 rounded-full bg-yellow-100 flex items-center justify-center text-xs">
+                          <span className="text-gray-500 text-sm font-medium flex items-center gap-1">
+                            <div className="w-5 h-5 rounded-full bg-gray-200 flex items-center justify-center text-xs">
                               {task.assignedUserName.charAt(0).toUpperCase()}
                             </div>
                             {task.assignedUserName}
@@ -525,7 +528,7 @@ export default function RoomPage({ params }: RoomPageProps) {
                       </div>
                     ))}
                     {completedTasks.length === 0 && (
-                      <div className="text-center py-6 text-yellow-500 bg-white rounded-xl border border-yellow-100">
+                      <div className="text-center py-6 text-gray-500 bg-white rounded-xl border border-gray-200">
                         <p>タスクがありません</p>
                       </div>
                     )}
