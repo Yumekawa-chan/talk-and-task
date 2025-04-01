@@ -674,7 +674,7 @@ export default function RoomPage({ params }: RoomPageProps) {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
           <div className="bg-white border border-gray-100 rounded-2xl p-6 w-full max-w-md shadow-[0_10px_30px_rgba(0,0,0,0.15)]">
             <div className="flex justify-between items-center mb-6">
-              <h3 className="text-xl font-semibold bg-clip-text text-transparent bg-gradient-to-r from-pink-500 to-teal-500">タスク編集</h3>
+              <h3 className="text-2xl font-semibold bg-clip-text bg-gradient-to-r text-pink-500">タスク編集</h3>
               <button 
                 onClick={() => setEditTaskModalOpen(false)}
                 className="text-gray-400 hover:text-gray-600 transition-colors"
