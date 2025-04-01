@@ -1,6 +1,7 @@
 import { ChatMessage as ChatMessageType } from '@/hooks/useRoom';
 import { Timestamp } from 'firebase/firestore';
 import Image from 'next/image';
+import { useEffect } from 'react';
 
 interface ChatMessageProps {
   message: ChatMessageType;
@@ -8,6 +9,11 @@ interface ChatMessageProps {
 }
 
 export default function ChatMessage({ message, isCurrentUser }: ChatMessageProps) {
+  // DEBUG: プロフィール画像のURL確認
+  useEffect(() => {
+    console.log(`Message from: ${message.sender.name}, profile image: ${message.sender.profileImage || 'none'}`);
+  }, [message]);
+
   // 日付をフォーマットする関数
   const formatDate = (timestamp: Timestamp) => {
     if (!timestamp || !timestamp.toDate) {
@@ -38,6 +44,7 @@ export default function ChatMessage({ message, isCurrentUser }: ChatMessageProps
                 width={32}
                 height={32}
                 className="object-cover w-full h-full"
+                unoptimized // Next.jsのイメージ最適化をスキップして外部URLの問題を回避
               />
             ) : (
               <span className="text-sm text-pink-500 font-bold">
@@ -76,6 +83,7 @@ export default function ChatMessage({ message, isCurrentUser }: ChatMessageProps
                 width={32}
                 height={32}
                 className="object-cover w-full h-full"
+                unoptimized // Next.jsのイメージ最適化をスキップして外部URLの問題を回避
               />
             ) : (
               <span className="text-sm text-pink-500 font-bold">

@@ -131,11 +131,60 @@ export const useRoom = (roomId: string) => {
       orderBy('timestamp', 'asc')
     );
     
-    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+    const unsubscribe = onSnapshot(q, async (querySnapshot) => {
       const messagesData: ChatMessage[] = [];
-      querySnapshot.forEach((doc) => {
-        messagesData.push({ id: doc.id, ...doc.data() } as ChatMessage);
+      
+      // メッセージの送信者情報を取得する処理を追加
+      const senderPromises: Promise<void>[] = [];
+      const senderCache: Record<string, {
+        id: string;
+        name: string;
+        profileImage?: string;
+      }> = {}; // 同じユーザーの情報を何度も取得しないためのキャッシュ
+      
+      querySnapshot.forEach((docSnapshot) => {
+        const messageData = docSnapshot.data();
+        const senderId = messageData.sender.id;
+        
+        // 送信者の最新情報を取得する処理を追加（キャッシュしながら）
+        if (!senderCache[senderId]) {
+          senderPromises.push(
+            getDoc(doc(db, 'users', senderId)).then(userDoc => {
+              if (userDoc.exists()) {
+                const userData = userDoc.data();
+                senderCache[senderId] = {
+                  id: senderId,
+                  name: userData.displayName || 'ユーザー',
+                  profileImage: userData.profileImage || ''
+                };
+              } else {
+                senderCache[senderId] = messageData.sender;
+              }
+            }).catch(error => {
+              console.error('Error fetching sender info:', error);
+              senderCache[senderId] = messageData.sender;
+            })
+          );
+        }
+        
+        messagesData.push({ 
+          id: docSnapshot.id,
+          ...messageData
+        } as ChatMessage);
       });
+      
+      // 全ての送信者情報の取得を待つ
+      if (senderPromises.length > 0) {
+        await Promise.all(senderPromises);
+        
+        // 取得した送信者情報でメッセージを更新
+        messagesData.forEach(message => {
+          if (senderCache[message.sender.id]) {
+            message.sender = senderCache[message.sender.id];
+          }
+        });
+      }
+      
       setMessages(messagesData);
       setLoading(prev => ({ ...prev, messages: false }));
     }, (err) => {
