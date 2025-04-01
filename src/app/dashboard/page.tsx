@@ -2,9 +2,9 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { FaUser, FaSignOutAlt, FaPlus, FaKey, FaTimes, FaHome, FaCopy, FaUserPlus} from 'react-icons/fa';
+import { FaUser, FaSignOutAlt, FaPlus, FaKey, FaTimes, FaHome, FaCopy, FaUserPlus, FaTrash } from 'react-icons/fa';
 import { useAuth } from '@/context/AuthContext';
-import { collection, query, where, getDocs, addDoc, serverTimestamp, doc, getDoc, updateDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, addDoc, serverTimestamp, doc, getDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '@/firebase/config';
 import toast from 'react-hot-toast';
 
@@ -23,6 +23,10 @@ export default function Dashboard() {
   const [joinRoomData, setJoinRoomData] = useState({ roomId: '', password: '' });
   const [rooms, setRooms] = useState<Room[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  // 削除確認用のステート追加
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [roomToDelete, setRoomToDelete] = useState<{id: string, name: string} | null>(null);
 
   useEffect(() => {
     const fetchRooms = async () => {
@@ -208,6 +212,61 @@ ${baseUrl}
       });
   };
 
+  // ルームから退出する関数 - イベントパラメータを削除して簡素化
+  const handleLeaveRoom = (roomId: string, roomName: string) => {
+    // 削除確認モーダルを表示するためのステートを設定
+    setRoomToDelete({ id: roomId, name: roomName });
+    setDeleteConfirmOpen(true);
+  };
+
+  // ルーム退出の確認
+  const confirmLeaveRoom = async () => {
+    if (!roomToDelete || !user) {
+      setDeleteConfirmOpen(false);
+      return;
+    }
+    
+    try {
+      const roomRef = doc(db, 'rooms', roomToDelete.id);
+      const roomSnap = await getDoc(roomRef);
+      
+      if (!roomSnap.exists()) {
+        toast.error('ルームが見つかりません');
+        setDeleteConfirmOpen(false);
+        return;
+      }
+      
+      const roomData = roomSnap.data();
+      
+      // 自分以外のメンバーを取得
+      const otherMembers = roomData.members.filter((memberId: string) => memberId !== user.uid);
+      
+      // メンバーが自分だけの場合（退出後は0人になる場合）
+      if (otherMembers.length === 0) {
+        // ルームを完全に削除
+        await deleteDoc(roomRef);
+        toast.success(`「${roomToDelete.name}」を削除しました`);
+      } else {
+        // メンバー配列から自分を削除
+        await updateDoc(roomRef, {
+          members: otherMembers,
+          updatedAt: serverTimestamp()
+        });
+        toast.success(`「${roomToDelete.name}」から退出しました`);
+      }
+      
+      // ルーム一覧から削除したルームを除外
+      setRooms(rooms.filter(room => room.id !== roomToDelete.id));
+      
+    } catch (error) {
+      console.error('Error leaving room:', error);
+      toast.error('ルームからの退出に失敗しました');
+    } finally {
+      setDeleteConfirmOpen(false);
+      setRoomToDelete(null);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-teal-100 flex items-center justify-center">
@@ -262,42 +321,47 @@ ${baseUrl}
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {rooms.map(room => (
-              <Link 
-                key={room.id} 
-                href={`/dashboard/${room.id}`}
-                className="block bg-white hover:bg-pink-50 border-2 border-gray-200 rounded-2xl p-5 transition-all hover:shadow-lg transform hover:-translate-y-1 duration-300"
-              >
-                <div className="flex justify-between items-start">
-                  <h3 className="text-xl font-medium text-gray-800 mb-2">{room.name}</h3>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={(e) => handleCopyRoomId(room.id, e)}
-                      className="text-gray-400 hover:text-pink-500 transition-colors p-1"
-                      title="ルームIDをコピー"
-                    >
-                      <FaCopy size={14} />
-                    </button>
-                    <button
-                      onClick={(e) => handleCreateInvite(e, room.id, room.name)}
-                      className="text-gray-400 hover:text-teal-500 transition-colors p-1"
-                      title="招待メッセージを作成"
-                    >
-                      <FaUserPlus size={14} />
-                    </button>
+              <div key={room.id} className="relative">
+                <Link 
+                  href={`/dashboard/${room.id}`}
+                  className="block bg-white hover:bg-pink-50 border-2 border-gray-200 rounded-2xl p-5 transition-all hover:shadow-lg transform hover:-translate-y-1 duration-300"
+                >
+                  <div className="flex justify-between items-start">
+                    <h3 className="text-xl font-medium text-gray-800 mb-2">{room.name}</h3>
                   </div>
-                </div>
-                <div className="mb-3">
-                  <div className="flex items-center">
-                    <span className="text-xs text-gray-500 font-mono bg-gray-100 px-2 py-1 rounded mr-1">ID: {room.id}</span>
+                  <p className="text-gray-600 text-sm mb-4">最終アクティブ: {room.lastActive}</p>
+                  <div className="flex justify-end">
+                    <span className="text-pink-500 text-sm flex items-center font-medium">
+                      入室する →
+                    </span>
                   </div>
+                </Link>
+                
+                {/* ボタングループをリンク外に配置 */}
+                <div className="absolute top-3 right-3 flex gap-1 bg-white/80 backdrop-blur-sm rounded-lg p-1 shadow-sm">
+                  <button
+                    onClick={(e) => handleCopyRoomId(room.id, e)}
+                    className="text-gray-400 hover:text-pink-500 transition-colors p-1.5"
+                    title="ルームIDをコピー"
+                  >
+                    <FaCopy size={14} />
+                  </button>
+                  <button
+                    onClick={(e) => handleCreateInvite(e, room.id, room.name)}
+                    className="text-gray-400 hover:text-teal-500 transition-colors p-1.5"
+                    title="招待メッセージを作成"
+                  >
+                    <FaUserPlus size={14} />
+                  </button>
+                  <button
+                    onClick={() => handleLeaveRoom(room.id, room.name)}
+                    className="text-gray-400 hover:text-red-500 transition-colors p-1.5"
+                    title={room.createdBy === user?.uid ? "作成者のため退出できません" : "ルームから退出"}
+                  >
+                    <FaTrash size={14} />
+                  </button>
                 </div>
-                <p className="text-gray-600 text-sm mb-4">最終アクティブ: {room.lastActive}</p>
-                <div className="flex justify-end">
-                  <span className="text-pink-500 text-sm flex items-center font-medium">
-                    入室する →
-                  </span>
-                </div>
-              </Link>
+              </div>
             ))}
 
             {rooms.length === 0 && (
@@ -444,6 +508,55 @@ ${baseUrl}
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ルーム退出確認モーダル */}
+      {deleteConfirmOpen && roomToDelete && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white border-2 border-gray-200 rounded-2xl p-6 w-full max-w-md shadow-lg">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-semibold text-red-500">ルームから退出</h3>
+              <button 
+                onClick={() => setDeleteConfirmOpen(false)}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <FaTimes size={20} />
+              </button>
+            </div>
+            
+            <div className="mb-6">
+              <p className="text-gray-700 mb-4">
+                「{roomToDelete.name}」から退出してもよろしいですか？
+              </p>
+              {rooms.find(r => r.id === roomToDelete.id)?.createdBy === user?.uid && (
+                <p className="text-amber-600 font-medium mb-3">
+                  あなたはこのルームの作成者です。
+                </p>
+              )}
+              <p className="text-gray-500 text-sm mb-2">
+                退出すると、再度参加するにはパスワードが必要になります。
+              </p>
+              <p className="text-red-500 text-sm">
+                ※最後のメンバーが退出すると、ルームは完全に削除されます。
+              </p>
+            </div>
+            
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setDeleteConfirmOpen(false)}
+                className="px-5 py-3 text-gray-600 hover:text-gray-800 font-medium transition-colors"
+              >
+                キャンセル
+              </button>
+              <button
+                onClick={confirmLeaveRoom}
+                className="bg-red-500 hover:bg-red-600 text-white px-5 py-3 rounded-xl transition-all duration-300 shadow-md font-medium"
+              >
+                退出する
+              </button>
+            </div>
           </div>
         </div>
       )}
