@@ -208,6 +208,12 @@ export const useRoom = (roomId: string) => {
       };
       
       const docRef = await addDoc(collection(db, 'rooms', roomId, 'tasks'), taskData);
+      
+      // ルームの最終アクティブ時間を更新
+      await updateDoc(doc(db, 'rooms', roomId), {
+        updatedAt: serverTimestamp()
+      });
+      
       return { id: docRef.id, ...taskData };
     } catch (err) {
       console.error('Failed to add task:', err);
@@ -225,6 +231,12 @@ export const useRoom = (roomId: string) => {
         status: newStatus,
         updatedAt: serverTimestamp()
       });
+      
+      // ルームの最終アクティブ時間を更新
+      await updateDoc(doc(db, 'rooms', roomId), {
+        updatedAt: serverTimestamp()
+      });
+      
       return true;
     } catch (err) {
       console.error('Failed to update task status:', err);
@@ -239,6 +251,12 @@ export const useRoom = (roomId: string) => {
     
     try {
       await deleteDoc(doc(db, 'rooms', roomId, 'tasks', taskId));
+      
+      // ルームの最終アクティブ時間を更新
+      await updateDoc(doc(db, 'rooms', roomId), {
+        updatedAt: serverTimestamp()
+      });
+      
       return true;
     } catch (err) {
       console.error('Failed to delete task:', err);
@@ -256,6 +274,12 @@ export const useRoom = (roomId: string) => {
         ...updatedTask,
         updatedAt: serverTimestamp()
       });
+      
+      // ルームの最終アクティブ時間を更新
+      await updateDoc(doc(db, 'rooms', roomId), {
+        updatedAt: serverTimestamp()
+      });
+      
       return true;
     } catch (err) {
       console.error('Failed to edit task:', err);
@@ -291,6 +315,12 @@ export const useRoom = (roomId: string) => {
       };
       
       const docRef = await addDoc(collection(db, 'rooms', roomId, 'messages'), messageData);
+      
+      // ルームの最終アクティブ時間を更新
+      await updateDoc(doc(db, 'rooms', roomId), {
+        updatedAt: serverTimestamp()
+      });
+      
       return { id: docRef.id, ...messageData };
     } catch (err) {
       console.error('Failed to send message:', err);
