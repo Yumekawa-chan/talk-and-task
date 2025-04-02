@@ -52,6 +52,26 @@ export default function ProfilePage() {
 
     setUploading(true);
     try {
+      // アップロード制限チェック - ユーザーデータを取得
+      const userRef = doc(db, 'users', user.uid);
+      const userDoc = await getDoc(userRef);
+      const userData = userDoc.data();
+      
+      // 最終画像アップロード時刻をチェック
+      if (userData?.lastImageUpload) {
+        const lastUpload = userData.lastImageUpload.toDate();
+        const now = new Date();
+        const hoursElapsed = (now.getTime() - lastUpload.getTime()) / (1000 * 60 * 60);
+        
+        // 12時間経過していない場合はエラー
+        if (hoursElapsed < 12) {
+          const remainingHours = Math.ceil(12 - hoursElapsed);
+          toast.error(`画像は12時間に1回だけアップロードできます。あと約${remainingHours}時間お待ちください。`);
+          setUploading(false);
+          return;
+        }
+      }
+
       // 古い画像が存在する場合は削除
       if (profileImage) {
         try {
@@ -70,16 +90,16 @@ export default function ProfilePage() {
       // プロフィール画像URLを更新
       setProfileImage(downloadURL);
       
-      // Firestoreにも画像URLを保存
+      // Firestoreにも画像URLと最終アップロード時刻を保存
       await updateDoc(doc(db, 'users', user.uid), {
         profileImage: downloadURL,
+        lastImageUpload: new Date(), // 最終画像アップロード時刻を記録
         updatedAt: new Date()
       });
       
       toast.success('プロフィール画像をアップロードしました');
       
       // AuthContextの更新を反映させるためにページを再読み込み
-      // 注: コンテキストを直接更新できる関数があればそれを使用するのがベター
       window.location.reload();
     } catch (error) {
       console.error('Error uploading image:', error);
