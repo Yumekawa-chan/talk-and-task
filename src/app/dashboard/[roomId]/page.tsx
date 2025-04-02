@@ -8,6 +8,7 @@ import ChatMessage from '@/components/ChatMessage';
 import { useRoom, TaskStatus, Task } from '@/hooks/useRoom';
 import { useAuth } from '@/context/AuthContext';
 import toast from 'react-hot-toast';
+import confetti from 'canvas-confetti';
 
 interface RoomPageProps {
   params: Promise<{
@@ -188,7 +189,60 @@ export default function RoomPage({ params }: RoomPageProps) {
     const success = await updateTaskStatus(taskId, newStatus);
     if (success) {
       toast.success(`タスクを「${newStatus}」に更新しました`);
+      
+      // タスクが完了になった場合、紙吹雪エフェクトを表示
+      if (newStatus === '完了') {
+        triggerConfetti();
+      }
     }
+  };
+  
+  // 紙吹雪エフェクトをトリガーする関数
+  const triggerConfetti = () => {
+    // 最初の紙吹雪（中央から）
+    confetti({
+      particleCount: 150,
+      spread: 90,
+      origin: { y: 0.6 },
+      colors: ['#FFC0CB', '#FF69B4', '#FFB6C1', '#FF1493', '#DB7093'], // ピンク系の色
+    });
+
+    // 少し遅れて2回目の紙吹雪（左から）
+    setTimeout(() => {
+      confetti({
+        particleCount: 80,
+        angle: 60,
+        spread: 80,
+        origin: { x: 0, y: 0.65 },
+        colors: ['#20B2AA', '#48D1CC', '#40E0D0', '#00CED1', '#5F9EA0'], // ティール系の色
+      });
+    }, 250);
+
+    // 少し遅れて3回目の紙吹雪（右から）
+    setTimeout(() => {
+      confetti({
+        particleCount: 80,
+        angle: 120,
+        spread: 80,
+        origin: { x: 1, y: 0.65 },
+        colors: ['#FFD700', '#FFA500', '#FF8C00', '#FF7F50', '#FF6347'], // オレンジ/イエロー系の色
+      });
+    }, 400);
+
+    // 最後のフィナーレ（下から上へ）
+    setTimeout(() => {
+      confetti({
+        particleCount: 120,
+        startVelocity: 30,
+        spread: 180,
+        ticks: 100,
+        gravity: 0.8,
+        origin: { x: 0.5, y: 1 },
+        scalar: 1.2,
+        shapes: ['circle', 'square'],
+        zIndex: 9999,
+      });
+    }, 650);
   };
   
   // 担当者選択時の処理
