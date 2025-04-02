@@ -32,6 +32,9 @@ export default function RoomPage({ params }: RoomPageProps) {
     email: string;
     profileImage?: string;
   }[]>([]);
+  
+  // タスクフィルター用の状態
+  const [taskFilter, setTaskFilter] = useState<string>('all');
 
   // useRoomフックを使用してFirebaseからデータを取得
   const { 
@@ -303,10 +306,35 @@ export default function RoomPage({ params }: RoomPageProps) {
     }
   };
 
+  // フィルターに基づいてタスクをフィルタリングする関数
+  const getFilteredTasksByStatus = (status: TaskStatus) => {
+    const tasksWithStatus = getTasksByStatus(status);
+    
+    // 'all'の場合はフィルタリングなし
+    if (taskFilter === 'all') {
+      return tasksWithStatus;
+    }
+    
+    // 特定のユーザーでフィルタリング
+    return tasksWithStatus.filter(task => task.assignedTo === taskFilter);
+  };
+  
+  // ステータスと表示形式に基づいて、"全て(5)" のような表示テキストを生成
+  const getStatusDisplayText = (status: TaskStatus) => {
+    const allTasks = getTasksByStatus(status);
+    const filteredTasks = getFilteredTasksByStatus(status);
+    
+    if (taskFilter === 'all') {
+      return `(${allTasks.length})`;
+    }
+    
+    return `(${filteredTasks.length}/${allTasks.length})`;
+  };
+
   // マルチセクションでタスクをステータス別に表示
-  const todoTasks = getTasksByStatus('未着手');
-  const inProgressTasks = getTasksByStatus('対応中');
-  const completedTasks = getTasksByStatus('完了');
+  const todoTasks = getFilteredTasksByStatus('未着手');
+  const inProgressTasks = getFilteredTasksByStatus('対応中');
+  const completedTasks = getFilteredTasksByStatus('完了');
   
   // キーボードショートカットの処理
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -408,22 +436,73 @@ export default function RoomPage({ params }: RoomPageProps) {
           {/* タスク管理セクション */}
           {activeTab === 'tasks' && (
             <div className="p-6">
-              <div className="flex justify-between items-center mb-8">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
                 <h2 className="text-xl font-semibold text-pink-500">タスク管理</h2>
-                <button 
-                  className="bg-pink-500 hover:bg-pink-600 text-white px-5 py-3 rounded-xl flex items-center gap-2 transition-all duration-300 shadow-md transform hover:-translate-y-1"
-                  onClick={() => setNewTaskModalOpen(true)}
-                >
-                  <FaPlus size={14} />
-                  <span>新規タスク</span>
-                </button>
+                
+                <div className="flex flex-wrap gap-3 items-center">
+                  {/* フィルター選択を削除し、新規タスクボタンのみを残す */}
+                  <button 
+                    className="bg-pink-500 hover:bg-pink-600 text-white px-5 py-2 rounded-xl flex items-center gap-2 transition-all duration-300 shadow-md transform hover:-translate-y-1"
+                    onClick={() => setNewTaskModalOpen(true)}
+                  >
+                    <FaPlus size={14} />
+                    <span>新規タスク</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* 参加者一覧 */}
+              <div className="mb-6 p-4 bg-gray-50 rounded-xl border border-gray-200">
+                <h3 className="text-md font-medium text-gray-700 mb-3 border-b border-gray-200 pb-2">参加者一覧</h3>
+                <div className="flex flex-wrap gap-3">
+                  {roomMembers.map(member => (
+                    <div 
+                      key={member.id} 
+                      className={`flex items-center gap-2 p-2 rounded-lg ${
+                        taskFilter === member.id ? 'bg-pink-100 border border-pink-300' : 'bg-white border border-gray-200'
+                      } cursor-pointer hover:bg-pink-50 transition-colors`}
+                      onClick={() => setTaskFilter(member.id)}
+                    >
+                      <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center overflow-hidden">
+                        {member.profileImage ? (
+                          <Image 
+                            src={member.profileImage}
+                            alt={member.name}
+                            width={32}
+                            height={32}
+                            className="object-cover w-full h-full"
+                          />
+                        ) : (
+                          <span className="text-sm text-gray-600 font-bold">
+                            {member.name.charAt(0).toUpperCase()}
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-sm font-medium">
+                        {member.name}
+                        {member.id === user?.uid && <span className="text-xs text-pink-500 ml-1">(自分)</span>}
+                      </span>
+                    </div>
+                  ))}
+                  <div 
+                    className={`flex items-center gap-2 p-2 rounded-lg ${
+                      taskFilter === 'all' ? 'bg-teal-100 border border-teal-300' : 'bg-white border border-gray-200'
+                    } cursor-pointer hover:bg-teal-50 transition-colors`}
+                    onClick={() => setTaskFilter('all')}
+                  >
+                    <div className="w-8 h-8 rounded-full bg-teal-100 flex items-center justify-center text-teal-500">
+                      <FaCheckCircle size={16} />
+                    </div>
+                    <span className="text-sm font-medium">全て表示</span>
+                  </div>
+                </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {/* 未着手タスク */}
                 <div className="bg-pink-50 rounded-2xl p-5 shadow-md border border-pink-200">
                   <h3 className="text-lg font-medium text-pink-600 mb-4 border-b-2 border-pink-200 pb-2 flex items-center">
-                    <span className="flex-1">未着手 ({todoTasks.length})</span>
+                    <span className="flex-1">未着手 {getStatusDisplayText('未着手')}</span>
                   </h3>
                   <div className="space-y-4">
                     {todoTasks.map((task) => (
@@ -487,7 +566,7 @@ export default function RoomPage({ params }: RoomPageProps) {
                 {/* 対応中タスク */}
                 <div className="bg-teal-50 rounded-2xl p-5 shadow-md border border-teal-200">
                   <h3 className="text-lg font-medium text-teal-600 mb-4 border-b-2 border-teal-200 pb-2 flex items-center">
-                    <span className="flex-1">対応中 ({inProgressTasks.length})</span>
+                    <span className="flex-1">対応中 {getStatusDisplayText('対応中')}</span>
                   </h3>
                   <div className="space-y-4">
                     {inProgressTasks.map((task) => (
@@ -562,8 +641,8 @@ export default function RoomPage({ params }: RoomPageProps) {
 
                 {/* 完了タスク */}
                 <div className="bg-yellow-50 rounded-2xl p-5 shadow-md border border-yellow-200">
-                  <h3 className="text-lg font-medium text-yellow-600 mb-4 border-b-2 border-yellow-200 pb-2 flex items-centerr">
-                    <span className="flex-1">完了 ({completedTasks.length})</span>
+                  <h3 className="text-lg font-medium text-yellow-600 mb-4 border-b-2 border-yellow-200 pb-2 flex items-center">
+                    <span className="flex-1">完了 {getStatusDisplayText('完了')}</span>
                   </h3>
                   <div className="space-y-4">
                     {completedTasks.map((task) => (
