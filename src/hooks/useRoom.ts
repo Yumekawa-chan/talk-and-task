@@ -26,6 +26,7 @@ export interface Task {
   updatedAt: Timestamp;
   assignedTo: string;
   assignedUserName: string;
+  dueDate?: Timestamp;
 }
 
 export interface ChatMessage {

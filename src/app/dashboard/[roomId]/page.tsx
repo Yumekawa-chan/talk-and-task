@@ -1,14 +1,16 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { FaArrowLeft, FaPlus, FaPaperPlane, FaTimes, FaArrowRight, FaHome, FaCheckCircle } from 'react-icons/fa';
+import { FaArrowLeft, FaPlus, FaPaperPlane, FaTimes, FaArrowRight, FaHome, FaCheckCircle, FaCalendarAlt } from 'react-icons/fa';
 import ChatMessage from '@/components/ChatMessage';
 import { useRoom, TaskStatus, Task } from '@/hooks/useRoom';
 import { useAuth } from '@/context/AuthContext';
 import toast from 'react-hot-toast';
 import confetti from 'canvas-confetti';
+import { Timestamp } from 'firebase/firestore';
 
 interface RoomPageProps {
   params: Promise<{
@@ -23,7 +25,7 @@ export default function RoomPage({ params }: RoomPageProps) {
   
   const [newTaskModalOpen, setNewTaskModalOpen] = useState(false);
   const [editTaskModalOpen, setEditTaskModalOpen] = useState(false);
-  const [currentTask, setCurrentTask] = useState<Task | null>(null);
+  const [currentTask, setCurrentTask] = useState<(Task & { dueDate?: Timestamp | null }) | null>(null);
   const [newMessage, setNewMessage] = useState('');
   const [activeTab, setActiveTab] = useState<'tasks' | 'chat'>('tasks');
   const [roomMembers, setRoomMembers] = useState<{
@@ -58,7 +60,8 @@ export default function RoomPage({ params }: RoomPageProps) {
     description: '',
     assignedTo: '',
     assignedUserName: '',
-    status: '未着手' as TaskStatus
+    status: '未着手' as TaskStatus,
+    dueDate: ''
   });
 
   // チャットエリアのrefを追加
@@ -152,6 +155,32 @@ export default function RoomPage({ params }: RoomPageProps) {
     }
   };
 
+  // 期日が過ぎているかどうかをチェックする関数
+  const isOverdue = (dueDate?: Timestamp) => {
+    if (!dueDate) return false;
+    
+    const now = new Date();
+    const dueDateJs = dueDate.toDate();
+    
+    // 日付のみで比較（時間は無視）
+    const nowDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const dueDateTime = new Date(dueDateJs.getFullYear(), dueDateJs.getMonth(), dueDateJs.getDate());
+    
+    return nowDate > dueDateTime;
+  };
+
+  // 期日を日本語フォーマットで表示する関数
+  const formatDueDate = (dueDate?: Timestamp) => {
+    if (!dueDate) return '';
+    
+    const date = dueDate.toDate();
+    return new Intl.DateTimeFormat('ja-JP', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    }).format(date);
+  };
+
   // 新規タスク追加ハンドラー
   const handleAddTask = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -163,13 +192,18 @@ export default function RoomPage({ params }: RoomPageProps) {
       return;
     }
     
-    const task = {
+    const task: Omit<Task, 'id' | 'createdAt' | 'updatedAt'> & { dueDate?: Timestamp } = {
       title: newTaskForm.title,
       description: newTaskForm.description,
       assignedTo: selectedMember.id,
       assignedUserName: selectedMember.name,
       status: newTaskForm.status
     };
+    
+    // 期日が入力されていれば追加
+    if (newTaskForm.dueDate) {
+      task.dueDate = Timestamp.fromDate(new Date(newTaskForm.dueDate));
+    }
     
     const success = await addTask(task);
     if (success) {
@@ -181,7 +215,8 @@ export default function RoomPage({ params }: RoomPageProps) {
       description: '',
       assignedTo: user?.uid || '',
       assignedUserName: selectedMember.name,
-      status: '未着手'
+      status: '未着手',
+      dueDate: ''
     });
     
     setNewTaskModalOpen(false);
@@ -283,16 +318,44 @@ export default function RoomPage({ params }: RoomPageProps) {
     e.preventDefault();
     if (!currentTask) return;
     
-    const success = await editTask(currentTask.id, {
+    // 更新用のオブジェクトを作成
+    const updatedTask: Partial<Omit<Task, 'id' | 'createdAt' | 'updatedAt'>> = {
       title: currentTask.title,
       description: currentTask.description,
       assignedTo: currentTask.assignedTo,
       assignedUserName: currentTask.assignedUserName,
       status: currentTask.status
-    });
+    };
     
-    if (success) {
+    try {
+      // 期日の更新処理を改善
+      if (typeof currentTask.dueDate === 'string') {
+        // 文字列タイプの場合
+        if (currentTask.dueDate === '') {
+          // 空文字の場合、フィールドを削除
+          await editTask(currentTask.id, {
+            ...updatedTask,
+            dueDate: undefined
+          });
+        } else {
+          // 有効な日付文字列がある場合、Timestampに変換
+          await editTask(currentTask.id, {
+            ...updatedTask,
+            dueDate: Timestamp.fromDate(new Date(currentTask.dueDate))
+          });
+        }
+      } else {
+        // Timestamp型またはnullの場合
+        await editTask(currentTask.id, {
+          ...updatedTask,
+          dueDate: currentTask.dueDate
+        });
+      }
+      
       toast.success('タスクを更新しました');
+    } catch (error) {
+      console.error('タスク更新エラー:', error);
+      toast.error('タスクの更新に失敗しました');
     }
     
     setEditTaskModalOpen(false);
@@ -527,6 +590,18 @@ export default function RoomPage({ params }: RoomPageProps) {
                           </div>
                         </div>
                         <p className="text-gray-600 text-sm mb-4 line-clamp-2">{task.description}</p>
+                        
+                        {/* 期日表示を追加 */}
+                        {task.dueDate && (
+                          <div className={`flex items-center gap-1 text-xs mb-2 ${isOverdue(task.dueDate instanceof Timestamp ? task.dueDate : undefined) ? 'text-red-500 font-bold' : 'text-gray-500'}`}>
+                            <FaCalendarAlt />
+                            <span>期日: {task.dueDate instanceof Timestamp ? formatDueDate(task.dueDate) : ''}</span>
+                            {isOverdue(task.dueDate instanceof Timestamp ? task.dueDate : undefined) && (
+                              <span className="bg-red-100 text-red-500 px-2 py-0.5 rounded-full text-xs ml-2">期限切れ</span>
+                            )}
+                          </div>
+                        )}
+                        
                         <div className="flex justify-between items-center">
                           <span className="text-pink-500 text-sm font-medium flex items-center gap-1">
                             <div className="w-5 h-5 rounded-full bg-pink-100 flex items-center justify-center text-xs overflow-hidden">
@@ -591,6 +666,18 @@ export default function RoomPage({ params }: RoomPageProps) {
                           </div>
                         </div>
                         <p className="text-gray-600 text-sm mb-4 line-clamp-2">{task.description}</p>
+                        
+                        {/* 期日表示を追加 */}
+                        {task.dueDate && (
+                          <div className={`flex items-center gap-1 text-xs mb-2 ${isOverdue(task.dueDate instanceof Timestamp ? task.dueDate : undefined) ? 'text-red-500 font-bold' : 'text-gray-500'}`}>
+                            <FaCalendarAlt />
+                            <span>期日: {task.dueDate instanceof Timestamp ? formatDueDate(task.dueDate) : ''}</span>
+                            {isOverdue(task.dueDate instanceof Timestamp ? task.dueDate : undefined) && (
+                              <span className="bg-red-100 text-red-500 px-2 py-0.5 rounded-full text-xs ml-2">期限切れ</span>
+                            )}
+                          </div>
+                        )}
+                        
                         <div className="flex justify-between items-center">
                           <div>
                             <span className="text-teal-500 text-sm font-medium flex items-center gap-1">
@@ -670,6 +757,7 @@ export default function RoomPage({ params }: RoomPageProps) {
                           </div>
                         </div>
                         <p className="text-gray-500 text-sm mb-4 line-clamp-2">{task.description}</p>
+                        
                         <div className="flex justify-between items-center">
                           <span className="text-gray-500 text-sm font-medium flex items-center gap-1">
                             <div className="w-5 h-5 rounded-full bg-gray-200 flex items-center justify-center text-xs overflow-hidden">
@@ -803,6 +891,18 @@ export default function RoomPage({ params }: RoomPageProps) {
                   />
                 </div>
                 <div>
+                  <label htmlFor="dueDate" className="block text-gray-700 mb-2 font-medium">
+                    期日
+                  </label>
+                  <input
+                    type="date"
+                    id="dueDate"
+                    value={newTaskForm.dueDate}
+                    onChange={(e) => setNewTaskForm({...newTaskForm, dueDate: e.target.value})}
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-300 rounded-xl text-gray-800 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+                  />
+                </div>
+                <div>
                   <label htmlFor="assignedTo" className="block text-gray-700 mb-2 font-medium">
                     担当者
                   </label>
@@ -878,6 +978,32 @@ export default function RoomPage({ params }: RoomPageProps) {
                     rows={3}
                     value={currentTask.description}
                     onChange={(e) => setCurrentTask({...currentTask, description: e.target.value})}
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-800 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="edit-dueDate" className="block text-gray-700 mb-2 font-medium">
+                    期日
+                  </label>
+                  <input
+                    type="date"
+                    id="edit-dueDate"
+                    value={
+                      !currentTask ? '' :
+                      currentTask.dueDate instanceof Timestamp 
+                        ? currentTask.dueDate.toDate().toISOString().split('T')[0] 
+                        : typeof currentTask.dueDate === 'string' 
+                          ? currentTask.dueDate 
+                          : ''
+                    }
+                    onChange={(e) => {
+                      if (currentTask) {
+                        setCurrentTask({
+                          ...currentTask, 
+                          dueDate: e.target.value === '' ? undefined : (e.target.value as any)
+                        });
+                      }
+                    }}
                     className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-800 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent"
                   />
                 </div>
